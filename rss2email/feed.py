@@ -494,8 +494,9 @@ class Feed (object):
 
         new_state['hash'] = new_hash
 
-        sender = self._get_entry_email(parsed=parsed, entry=entry)
-        subject = self._get_entry_title(entry)
+        format_data = self._get_entry_data(parsed=parsed, entry=entry)
+        sender = self._get_entry_email(format_data, parsed=parsed, entry=entry)
+        subject = self._get_entry_subject(format_data)
 
         message_id = '<{0}@{1}>'.format(_uuid.uuid4(), platform.node())
         in_reply_to = old_state.get('message_id') if old_state is not None else None
@@ -604,7 +605,7 @@ class Feed (object):
                     break
         return _time.strftime("%a, %d %b %Y %H:%M:%S -0000", datetime)
 
-    def _get_entry_name(self, parsed, entry):
+    def _get_entry_data(self, parsed, entry):
         """Get the best name
 
         >>> import feedparser
@@ -621,21 +622,20 @@ class Feed (object):
         ...     '</feed>\\n'
         ...     )
         >>> entry = parsed.entries[0]
+        >>> format_data = f._get_entry_data(parsed, entry)
         >>> f.name_format = ''
-        >>> f._get_entry_name(parsed, entry)
+        >>> f._get_entry_name(format_data)
         ''
         >>> f.name_format = '{author}'
-        >>> f._get_entry_name(parsed, entry)
+        >>> f._get_entry_name(format_data)
         'Example author'
         >>> f.name_format = '{feed-title}: {author}'
-        >>> f._get_entry_name(parsed, entry)
+        >>> f._get_entry_name(format_data)
         ': Example author'
         >>> f.name_format = '{author} ({feed.name})'
-        >>> f._get_entry_name(parsed, entry)
+        >>> f._get_entry_name(format_data)
         'Example author (test-feed)'
         """
-        if not self.name_format:
-            return ''
         data = {
             'feed': self,
             'feed-name': self.name,
@@ -643,6 +643,7 @@ class Feed (object):
             'feed-title': '<feed title>',
             'author': '<author>',
             'publisher': '<publisher>',
+            'entry-title': '<entry title>',
             }
         feed = parsed.feed
         data['feed-title'] = feed.get('title', '')
@@ -653,8 +654,20 @@ class Feed (object):
                     break
         if 'name' in feed.get('publisher_detail', []):
             data['publisher'] = feed.publisher_detail.name
+        data['entry-title'] = self._get_entry_title(entry)
+        return data
+
+    def _get_entry_name(self, data):
+        if not self.name_format:
+            return ''
         name = self.name_format.format(**data)
         return _html.unescape(name)
+
+    def _get_entry_subject(self, data):
+        if not self.subject_format:
+            return ''
+        subject = self.subject_format.format(**data)
+        return _html.unescape(subject)
 
     def _validate_email(self, email, default=None):
         """Do a basic quality check on email address
@@ -701,10 +714,10 @@ class Feed (object):
         _LOG.debug('no sender address found, fallback to default')
         return self.from_email
 
-    def _get_entry_email(self, parsed, entry):
+    def _get_entry_email(self, format_data, parsed, entry):
         """Get the best From email address ('John <jdoe@a.com>')
         """
-        name = self._get_entry_name(parsed=parsed, entry=entry)
+        name = self._get_entry_name(format_data)
         address = self._get_entry_address(parsed=parsed, entry=entry)
         return _formataddr((name, address))
 

@@ -94,6 +94,8 @@ CONFIG['DEFAULT'] = _collections.OrderedDict((
         # include 'feed', 'feed-name', 'feed-url', 'feed-title', 'author', and
         # 'publisher', but only 'feed', 'feed-name', and 'feed-url' are guaranteed.
         ('name-format', '{feed-title}: {author}'),
+        # Additionally to the attributes from name-format, there is 'entry-title'
+        ('subject-format', '{entry-title}'),
         # Set this to default To email addresses.
         ('to', ''),
 
